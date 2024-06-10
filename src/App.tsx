@@ -1,37 +1,9 @@
-import * as z from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
-import { FormProvider, useFieldArray, useForm, useFormContext } from "react-hook-form";
-
-// Zod
-const PriceSchema = z.object({
-  range: z.string(),
-  amount: z.number(),
-});
-const PriceListSchema = z.object({
-  interval: z.number(),
-  price: z.array(PriceSchema),
-});
-const FuelPriceSchema = z.object({
-  min: z.number(),
-  max: z.number(),
-  range: z.number(),
-});
-const QuotationSchema = z.object({
-  header: z.object({
-    fuelPrice: FuelPriceSchema,
-  }),
-  priceList: z.array(PriceListSchema),
-});
-
-// Type
-type TQuotation = z.infer<typeof QuotationSchema>;
-type TPriceList = z.infer<typeof PriceListSchema>;
-type TFuelPrice = z.infer<typeof FuelPriceSchema>;
+import { FormProvider, useForm, useFormContext } from "react-hook-form";
 
 // lib
-const getFuelRange = ({ fuelPrice }: { fuelPrice: TFuelPrice }) => {
-  const { min, max, range } = fuelPrice;
+const calcFuelPriceTable = ({ fuelRange }: { fuelRange: any }) => {
+  const { min, max, range } = fuelRange;
   const data = [];
 
   let start = min;
@@ -50,222 +22,127 @@ const getFuelRange = ({ fuelPrice }: { fuelPrice: TFuelPrice }) => {
     }
   }
 
-  return { data, count };
+  return { data };
 };
-const calcFuelPrice = ({ interval, prices, firstPrice }: any) => {
-  let amount = 0;
-  const data = prices.map((item: any, idx: any) => {
-    if (idx === 0) {
-      amount = firstPrice.amount || 0;
-    } else {
-      amount += interval || 0;
-    }
+const calcFuelPriceData = ({ fuelPrice, fuelPriceTable }: any) => {
+  const data = fuelPrice.map((fuel: any, idx: any) => {
+    const { interval, price } = fuel;
+    let amount = 0;
+
+    const data = fuelPriceTable.map((item: any, idx: any) => {
+      if (idx === 0) {
+        amount = price[idx].amount || 0;
+      } else {
+        amount += interval || 0;
+      }
+
+      return {
+        range: item.range,
+        amount,
+      };
+    });
+
     return {
-      ...item,
-      amount,
+      ...fuel,
+      price: data,
     };
   });
-  return data;
+  return { data };
 };
 
-// Form
-const MainHead = () => {
+// component
+const MainHeader = () => {
   const methods = useFormContext();
-  const { register, watch, setValue } = methods;
-  const {
-    state: { fuelRangeTable, setFuelRangeTable, setFuelRangeShow },
-  }: any = methods;
-
-  const watchFuelPrice = watch("header.fuelPrice");
-  const watchPriceList = watch("priceList");
-
-  // useEffect(() => {
-  //   const fuelPriceRange = getFuelRange({ fuelPrice: watchFuelPrice });
-  //   setFuelRangeTable(fuelPriceRange);
-  // }, [watchFuelPrice, watchFuelPrice.min, watchFuelPrice.max, watchFuelPrice.range, setFuelRangeTable, setFuelRangeShow]);
-
-  const onCreateFuelPrice = async () => {
-    await watchPriceList.map((price: any, pidx: any) => {
-      const fuelPrices = fuelRangeTable?.data?.map((fuelPrice: any, idx: any) => {
-        return {
-          range: fuelPrice.range,
-          amount: 0,
-        };
-      });
-      setValue(`priceList.${pidx}.price`, fuelPrices);
-    });
-    setFuelRangeShow(true);
-  };
+  const { register } = methods;
 
   return (
-    <div className="">
-      <div className="">
-        <label htmlFor="header.fuelPrice.min">min</label>
-        <input
-          id="header.fuelPrice.min"
-          type="number"
-          step="any"
-          {...register("header.fuelPrice.min", {
-            valueAsNumber: true,
-            onBlur(event) {
-              const min = watch("header.fuelPrice.min");
-              const max = watch("header.fuelPrice.max");
-              const range = (max - min) / 15;
-
-              setValue("header.fuelPrice.range", range);
-
-              if (min > max) {
-                setValue("header.fuelPrice.min", max);
-              }
-            },
-          })}
-        />
-      </div>
-      <div className="">
-        <label htmlFor="header.fuelPrice.max">max</label>
-        <input
-          id="header.fuelPrice.max"
-          type="number"
-          step="any"
-          {...register("header.fuelPrice.max", {
-            valueAsNumber: true,
-            onBlur(event) {
-              const min = watch("header.fuelPrice.min");
-              const max = watch("header.fuelPrice.max");
-              const range = (max - min) / 15;
-
-              setValue("header.fuelPrice.range", range);
-            },
-          })}
-        />
-      </div>
-      <div className="">
-        <label htmlFor="header.fuelPrice.range">range</label>
-        <input
-          id="header.fuelPrice.range"
-          type="number"
-          step="any"
-          {...register("header.fuelPrice.range", {
-            valueAsNumber: true,
-            onBlur(event) {
-              const min = watch("header.fuelPrice.min");
-              const max = watch("header.fuelPrice.max");
-              const range = (max - min) / 15;
-
-              if (watch("header.fuelPrice.range") < range) {
-                setValue("header.fuelPrice.range", range);
-              }
-              if (watch("header.fuelPrice.range") > max) {
-                setValue("header.fuelPrice.range", max);
-              }
-            },
-          })}
-        />
-      </div>
-      <button type="button" onClick={onCreateFuelPrice}>
-        submit form
-      </button>
-    </div>
+    <>
+      <label htmlFor="header.fuelRange.min">min</label>
+      <input id="header.fuelRange.min" type="number" step="0.01" {...register("header.fuelRange.min", { valueAsNumber: true })} />
+      <label htmlFor="header.fuelRange.max">max</label>
+      <input id="header.fuelRange.max" type="number" step="0.01" {...register("header.fuelRange.max", { valueAsNumber: true })} />
+      <label htmlFor="header.fuelRange.range">range</label>
+      <input id="header.fuelRange.range" type="number" step="0.01" {...register("header.fuelRange.range", { valueAsNumber: true })} />
+    </>
   );
 };
 const MainTable = () => {
   const methods = useFormContext();
   const { watch, register, setValue } = methods;
-  const {
-    priceList,
-    state: { fuelRangeTable },
-  }: any = methods;
+  const { createFuelTable }: any = methods;
 
-  const watchPriceList = watch("priceList");
-
-  const onChangePrice = (options: any) => {
-    const interval = parseFloat(watch(`priceList.${options.rowIndex}.interval`));
-    const prices = watch(`priceList.${options.rowIndex}.price`);
-    const firstPrice = watch(`priceList.${options.rowIndex}.price.${0}`);
-    const fuelPrice = calcFuelPrice({ interval, prices, firstPrice });
-    setValue(`priceList.${options.rowIndex}.price`, fuelPrice);
-  };
-
-  const IntervalEditor = (rowData: any, options: any) => {
-    return (
-      <>
-        <input
-          id={`priceList.${options.rowIndex}.interval`}
-          type="number"
-          {...register(`priceList.${options.rowIndex}.interval`, {
-            valueAsNumber: true,
-            onChange(event) {
-              onChangePrice(options);
-            },
-          })}
-        />
-      </>
-    );
-  };
-  const PriceEditor = (rowData: any, options: any) => {
-    return (
-      <>
-        <input
-          id={`priceList.${options.rowIndex}.price.${0}.amount`}
-          type="number"
-          {...register(`priceList.${options.rowIndex}.price.${0}.amount`, {
-            valueAsNumber: true,
-            onChange(event) {
-              onChangePrice(options);
-            },
-          })}
-        />
-      </>
-    );
-  };
+  const watchFuelRange = watch("header.fuelRange");
+  const watchFuelPrice = watch("priceList");
 
   return (
     <>
-      <table>
-        <thead>
-          <tr>
-            <th rowSpan={2}>ช่วงราคา</th>
-            <th colSpan={fuelRangeTable?.count}>อัตราราคาน้ำมัน บาท/ลิตร</th>
-          </tr>
-          <tr>
-            {fuelRangeTable?.data?.map((item: any, idx: any) => (
-              <th key={idx} className="text-center">
-                {item.range}
-              </th>
+      <div className="">
+        {watchFuelPrice.map((item: any, idx: any) => (
+          <div key={idx}>
+            <input
+              id={`priceList.${idx}.interval`}
+              type="number"
+              step="0.01"
+              {...register(`priceList.${idx}.interval`, {
+                valueAsNumber: true,
+                onChange: async (event) => {
+                  const { fuelPriceData } = await createFuelTable({ fuelPrice: watchFuelPrice, fuelRange: watchFuelRange });
+                  setValue("priceList", fuelPriceData);
+                },
+              })}
+            />
+            <hr />
+            {item.price.map((item: any, pidx: any) => (
+              <div key={pidx}>
+                {pidx === 0 ? (
+                  <>
+                    {item.range} :
+                    <input
+                      id={`priceList.${idx}.price.${0}.amount`}
+                      type="number"
+                      step="0.01"
+                      {...register(`priceList.${idx}.price.${0}.amount`, {
+                        valueAsNumber: true,
+                        onChange: async (event) => {
+                          const { fuelPriceData } = await createFuelTable({ fuelPrice: watchFuelPrice, fuelRange: watchFuelRange });
+                          setValue("priceList", fuelPriceData);
+                        },
+                      })}
+                    />
+                  </>
+                ) : (
+                  <>
+                    {item.range} : {item.amount}
+                  </>
+                )}
+              </div>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {priceList.fields.map((field: TPriceList, idx: number) => (
-            <tr key={idx}>
-              <td>{IntervalEditor(field, { rowIndex: idx })}</td>
-              {watchPriceList[idx]?.price?.map((item: any, idx: any) => (
-                <td key={idx}>{idx > 0 ? item.amount : PriceEditor(field, { rowIndex: idx })}</td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </div>
+        ))}
+      </div>
     </>
   );
 };
 const MainForm = ({ initialData }: { initialData?: any }) => {
   const methods = useForm({
-    resolver: zodResolver(QuotationSchema),
     defaultValues: {
       header: {
-        fuelPrice: {
+        fuelRange: {
           min: 0,
-          max: 10,
-          range: 5,
+          max: 1,
+          range: 0.5,
         },
       },
       priceList: [
         {
-          interval: 100,
+          interval: 0,
           price: [
             {
-              range: "",
+              range: "0.00 - 0.50",
+              amount: 0,
+            },
+            {
+              range: "0.50 - 1.00",
               amount: 0,
             },
           ],
@@ -274,46 +151,91 @@ const MainForm = ({ initialData }: { initialData?: any }) => {
     },
     values: initialData,
   });
+  const { handleSubmit, watch, setValue } = methods;
 
-  const { handleSubmit, control } = methods;
-  const priceList = useFieldArray({
-    control,
-    name: "priceList",
-  });
+  const [showTable, setShowTable] = useState(false);
+  const onOpenTable = () => setShowTable(true);
+  const onCloseTable = () => setShowTable(false);
 
-  const [fuelRangeTable, setFuelRangeTable] = useState();
-  const [fuelRangeShow, setFuelRangeShow] = useState(true);
+  const watchFuelRange = watch("header.fuelRange");
+  const watchFuelPrice = watch("priceList");
 
-  const onSubmit = (data: TQuotation) => {
+  useEffect(() => {
+    onCloseTable();
+  }, [watchFuelRange.min, watchFuelRange.max, watchFuelRange.range]);
+
+  const createFuelTable = async ({ fuelPrice, fuelRange }: any) => {
+    const { data: fuelPriceTable } = await calcFuelPriceTable({ fuelRange });
+    const { data: fuelPriceData } = await calcFuelPriceData({ fuelPrice, fuelPriceTable });
+    return { fuelPriceData };
+  };
+
+  const onCreateFuelTable = async ({ fuelPrice, fuelRange }: any) => {
+    const { fuelPriceData } = await createFuelTable({ fuelPrice, fuelRange });
+    setValue("priceList", fuelPriceData);
+    onOpenTable();
+  };
+
+  const onSubmit = (data: any) => {
     console.log(data);
   };
 
   return (
-    <FormProvider {...{ ...methods, priceList, state: { fuelRangeTable, setFuelRangeTable, fuelRangeShow, setFuelRangeShow } }}>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <MainHead />
-        {fuelRangeShow && (
-          <>
-            <MainTable />
-            <button type="submit">submit</button>
-          </>
-        )}
-      </form>
-    </FormProvider>
+    <>
+      <FormProvider {...{ ...methods, createFuelTable }}>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <MainHeader />
+          <button type="button" onClick={() => onCreateFuelTable({ fuelPrice: watchFuelPrice, fuelRange: watchFuelRange })}>
+            Submit Header
+          </button>
+          {showTable && (
+            <>
+              <MainTable />
+              <button type="submit">submit form</button>
+            </>
+          )}
+        </form>
+      </FormProvider>
+    </>
   );
 };
 
 // Main
 function App() {
-  const initialData: TQuotation = {
+  const initialData: any = {
     header: {
-      fuelPrice: {
+      fuelRange: {
         min: 0,
         max: 50,
         range: 10,
       },
     },
     priceList: [
+      {
+        interval: 500,
+        price: [
+          {
+            range: "0.00 - 10.00",
+            amount: 200,
+          },
+          {
+            range: "10.00 - 20.00",
+            amount: 300,
+          },
+          {
+            range: "20.00 - 30.00",
+            amount: 400,
+          },
+          {
+            range: "30.00 - 40.00",
+            amount: 500,
+          },
+          {
+            range: "40.00 - 50.00",
+            amount: 600,
+          },
+        ],
+      },
       {
         interval: 500,
         price: [
