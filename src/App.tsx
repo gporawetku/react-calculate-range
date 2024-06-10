@@ -53,16 +53,67 @@ const calcFuelPriceData = ({ fuelPrice, fuelPriceTable }: any) => {
 // component
 const MainHeader = () => {
   const methods = useFormContext();
-  const { register } = methods;
+  const { register, watch, setValue } = methods;
 
   return (
     <>
       <label htmlFor="header.fuelRange.min">min</label>
-      <input id="header.fuelRange.min" type="number" step="0.01" {...register("header.fuelRange.min", { valueAsNumber: true })} />
+      <input
+        id="header.fuelRange.min"
+        type="number"
+        step="0.01"
+        {...register("header.fuelRange.min", {
+          valueAsNumber: true,
+          onBlur(event) {
+            let min = watch("header.fuelRange.min");
+            const max = watch("header.fuelRange.max");
+            const range = (max - min) / 15;
+
+            setValue("header.fuelRange.range", range);
+
+            if (min >= max) {
+              setValue("header.fuelRange.min", max);
+            }
+          },
+        })}
+      />
       <label htmlFor="header.fuelRange.max">max</label>
-      <input id="header.fuelRange.max" type="number" step="0.01" {...register("header.fuelRange.max", { valueAsNumber: true })} />
+      <input
+        id="header.fuelRange.max"
+        type="number"
+        step="0.01"
+        {...register("header.fuelRange.max", {
+          valueAsNumber: true,
+          onBlur(event) {
+            const min = watch("header.fuelRange.min");
+            const max = watch("header.fuelRange.max");
+            const range = (max - min) / 15;
+
+            setValue("header.fuelRange.range", range);
+          },
+        })}
+      />
       <label htmlFor="header.fuelRange.range">range</label>
-      <input id="header.fuelRange.range" type="number" step="0.01" {...register("header.fuelRange.range", { valueAsNumber: true })} />
+      <input
+        id="header.fuelRange.range"
+        type="number"
+        step="0.01"
+        {...register("header.fuelRange.range", {
+          valueAsNumber: true,
+          onBlur(event) {
+            const min = watch("header.fuelRange.min");
+            const max = watch("header.fuelRange.max");
+            const range = (max - min) / 15;
+
+            if (watch("header.fuelRange.range") < range) {
+              setValue("header.fuelRange.range", range);
+            }
+            if (watch("header.fuelRange.range") >= max) {
+              setValue("header.fuelRange.range", max - range);
+            }
+          },
+        })}
+      />
     </>
   );
 };
@@ -149,7 +200,7 @@ const MainForm = ({ initialData }: { initialData?: any }) => {
         },
       ],
     },
-    values: initialData,
+    // values: initialData,
   });
   const { handleSubmit, watch, setValue } = methods;
 
